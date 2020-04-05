@@ -36,7 +36,7 @@ jobs:
             ${{ runner.OS }}-
 
       - name: Install dependencies
-        run: npm ci # Faster than npm install
+        run: npm ci # Faster than 'npm install'
 
       - name: Run tests
         run: npm run test --if-present
