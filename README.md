@@ -1,68 +1,118 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Google Kubernetes Engine - GitHub Actions
 
-## Available Scripts
+An example workflow that uses [GitHub Actions][actions] to deploy [a static
+website](site/) to an existing [Google Kubernetes Engine][gke] cluster.
 
-In the project directory, you can run:
+This code is intended to be an _example_. You will likely need to change or
+update values to match your setup.
 
-### `yarn start`
+## Workflow description
 
-Runs the app in the development mode.<br />
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+For pushes to the `master` branch, this workflow will:
 
-The page will reload if you make edits.<br />
-You will also see any lint errors in the console.
+1.  Download and configure the Google [Cloud SDK][sdk] with the provided
+    credentials.
 
-### `yarn test`
+1.  Build, tag, and push a container image to Google Container Registry.
 
-Launches the test runner in the interactive watch mode.<br />
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1.  Use a Kubernetes Deployment to push the image to the cluster.
 
-### `yarn build`
+    - Note that a GKE deployment requires a unique Tag to update the pods. Using
+      a constant tag `latest` or a branch name `master` may result in successful
+      workflows that don't update the cluster.
 
-Builds the app for production to the `build` folder.<br />
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Setup
 
-The build is minified and the filenames include the hashes.<br />
-Your app is ready to be deployed!
+1.  Create a new Google Cloud Project (or select an existing project) and
+    [enable the Container Registry and Kubernetes Engine APIs](https://console.cloud.google.com/flows/enableapi?apiid=containerregistry.googleapis.com,container.googleapis.com).
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+1.  [Create a new GKE cluster][cluster] or select an existing GKE cluster.
 
-### `yarn eject`
+1.  Create or reuse a GitHub repository for the example workflow:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+    1.  [Create a repository](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/creating-a-new-repository).
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+    1.  Move into the repository directory:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+        ```
+        $ cd <repo>
+        ```
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+    1.  Copy the example into the repository:
 
-## Learn More
+        ```
+        $ cp -r <path_to>/github-actions/example-workflows/gke/ .
+        ```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+1.  [Create a Google Cloud service account][create-sa] if one does not already
+    exist.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+1.  Add the the following [Cloud IAM roles][roles] to your service account:
 
-### Code Splitting
+    - `Kubernetes Engine Developer` - allows deploying to GKE
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/code-splitting
+    - `Storage Admin` - allows publishing to Container Registry
 
-### Analyzing the Bundle Size
+    Note: These permissions are overly broad to favor a quick start. They do not
+    represent best practices around the Principle of Least Privledge. To
+    properly restrict access, you should create a custom IAM role with the most
+    restrictive permissions.
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size
+1.  [Create a JSON service account key][create-key] for the service account.
 
-### Making a Progressive Web App
+1.  Add the following secrets to your repository's secrets:
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app
+    - `GKE_PROJECT`: Google Cloud project ID
 
-### Advanced Configuration
+    - `GKE_SA_EMAIL`: the email of the service account
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/advanced-configuration
+    - `GKE_SA_KEY`: the content of the service account JSON file
 
-### Deployment
+1.  Update `.github/workflows/gce.yml` to match the values corresponding to your
+    VM:
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/deployment
+    - `GKE_CLUSTER` - the instance name of your cluster
 
-### `yarn build` fails to minify
+    - `GCE_ZONE` - the zone your cluster resides
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+    - `IMAGE` - your preferred Docker image name
+
+    You can find the names of your clusters using the command:
+
+    ```
+    $ gcloud container clusters list
+    ```
+
+    and the zone using the command:
+
+    ```
+    $ gcloud container clusters describe <CLUSTER_NAME>
+    ```
+
+## Run the workflow
+
+1.  Add and commit your changes:
+
+    ```text
+    $ git add .
+    $ git commit -m "Set up GitHub workflow"
+    ```
+
+1.  Push to the `master` branch:
+
+    ```text
+    $ git push -u origin master
+    ```
+
+1.  View the GitHub Actions Workflow by selecting the `Actions` tab at the top
+    of your repository on GitHub. Then click on the `Build and Deploy to GKE`
+    element to see the details.
+
+[actions]: https://help.github.com/en/categories/automating-your-workflow-with-github-actions
+[cluster]: https://cloud.google.com/kubernetes-engine/docs/quickstart#create_cluster
+[gke]: https://cloud.google.com/gke
+[create-sa]: https://cloud.google.com/iam/docs/creating-managing-service-accounts
+[create-key]: https://cloud.google.com/iam/docs/creating-managing-service-account-keys
+[sdk]: https://cloud.google.com/sdk
+[secrets]: https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets
+[roles]: https://cloud.google.com/iam/docs/granting-roles-to-service-accounts#granting_access_to_a_service_account_for_a_resource
