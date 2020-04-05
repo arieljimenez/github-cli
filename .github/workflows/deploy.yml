@@ -1,17 +1,3 @@
-# Copyright 2019 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 name: Build and Deploy to GKE
 
 on:
@@ -21,8 +7,8 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
-  GKE_CLUSTER: production   # TODO: update to cluster name
-  GKE_ZONE: us-central1-c  # TODO: update to cluster zone
+  GKE_CLUSTER: production
+  GKE_ZONE: us-central1-c
   IMAGE: static-site
 
 jobs:
@@ -51,8 +37,28 @@ jobs:
     - run: |-
         gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
 
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+      node-version: '12.16.1' # latest LTS for node 12.x
+
+    - name: Cache Node.js modules # keep the npm cache around to speed up installs
+      uses: actions/cache@v1
+      with:
+        path: ~/.npm # npm cache files are stored in `~/.npm` on Linux/macOS
+        key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.OS }}-node-
+          ${{ runner.OS }}-
+
+    - name: Install dependencies
+      run: npm ci # Faster than npm install
+
+    - name: Build frontend
+      run: npm run build --if-present
+
     # Build the Docker image
-    - name: Build
+    - name: Build docker image
       run: |-
         docker build \
           --tag "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA" \
@@ -76,5 +82,5 @@ jobs:
       run: |-
         ./kustomize edit set image gcr.io/PROJECT_ID/IMAGE:TAG=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA
         ./kustomize build . | kubectl apply -f -
-        kubectl rollout status deployment/gke-test
+        kubectl rollout status deployment/freya-frontend
         kubectl get services -o wide
