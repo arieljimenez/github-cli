@@ -1,0 +1,46 @@
+name: Test and Build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+      - staging
+  release:
+    types:
+      - created
+
+jobs:
+  setup-and-build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Use Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.16.1' # latest LTS for node 12.x
+
+      - name: Cache Node.js modules # keep the npm cache around to speed up installs
+        uses: actions/cache@v1
+        with:
+          path: ~/.npm # npm cache files are stored in `~/.npm` on Linux/macOS
+          key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.OS }}-node-
+            ${{ runner.OS }}-
+
+      - name: Install dependencies
+        run: npm ci # Faster than 'npm install'
+
+      - name: Run tests
+        run: npm run test --if-present
+
+      - name: Lets see if we can build
+        run: npm run build --if-present
+
