@@ -40,7 +40,7 @@ jobs:
     - name: Use Node.js
       uses: actions/setup-node@v1
       with:
-      node-version: '12.16.1' # latest LTS for node 12.x
+        node-version: '12.16.1' # latest LTS for node 12.x
 
     - name: Cache Node.js modules # keep the npm cache around to speed up installs
       uses: actions/cache@v1
